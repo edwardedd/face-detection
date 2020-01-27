@@ -1,11 +1,11 @@
 const faceDetector = new window.FaceDetector();
-const video = document.querySelector('.webcam');
-
-const canvas = document.querySelector('.video');
+const video = document.querySelector('video.webcam');
+const canvas = document.querySelector('canvas.video');
 const ctx = canvas.getContext('2d');
-
-const faceCanvas = document.querySelector('.face');
-const faceCtx = canvas.getContext('2d');
+const faceCanvas = document.querySelector('canvas.face');
+const faceCtx = faceCanvas.getContext('2d');
+const SIZE = 10;
+const SCALE = 1.5;
 
 
 async function populateVideo() {
@@ -14,19 +14,65 @@ async function populateVideo() {
   });
   video.srcObject = stream;
   await video.play();
-  canvas.height = video.videoHeight;
   canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  faceCanvas.width = video.videoWidth;
   faceCanvas.height = video.videoHeight;
-  faceCanvas.height = video.videoWidth;
-};
+}
 
 
-async function detect(){
+async function detect() {
   const faces = await faceDetector.detect(video);
-  // console.log(faces.length);
-  requestAnimationFrame(detect)
-  
+  // ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // paintFace(faces);
+  faces.forEach(drawFace);
+  faces.forEach(censor);
+  requestAnimationFrame(detect);
+}
 
+function drawFace(face){
+  const {width, height, top,  left } = face.boundingBox;
+  // console.log({width, height, top,  left });
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.strokeStyle = '#ffc600';
+  ctx.lineWidth = 2;
+  ctx.strokeRect( left,top,width, height);
+  
 };
+
+function censor({ boundingBox: face }) {
+  faceCtx.imageSmoothingEnabled = false;
+  faceCtx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+  // First draw it small
+  faceCtx.drawImage(
+    video, // Where should I grab the photo from?
+    face.x, // from what x and y should I start capturing from?
+    face.y,
+    face.width, // how wide and high should I capture from?
+    face.height,
+    face.x, // now to draw it, where should I start x and y?
+    face.y,
+    SIZE, // how wide and high should it be?
+    SIZE
+  );
+
+  const width = face.width * SCALE ;
+  const height = face.height * SCALE ;
+
+  // then draw it back on, but scaled up
+  faceCtx.drawImage(
+    faceCanvas, // Where should I grab the photo from?
+    face.x, // from what x and y should I start capturing from?
+    face.y, // from what x and y should I start capturing from?
+    SIZE,
+    SIZE,
+    // Drawing
+    face.x - (width - face.width) / 2,
+    face.y - (height - face.height) / 2,
+    width,
+    height
+  );
+}
 
 populateVideo().then(detect)
